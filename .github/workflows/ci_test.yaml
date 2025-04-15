@@ -15,8 +15,6 @@ jobs:
       - name: diff extractor
         id: diff_extractor
         uses: malekboubahri2/actions/diff_extractor@main
-        with:
-          repo-path: ${{ github.workspace }}
 
       - name: ai_inference
         id: inference
