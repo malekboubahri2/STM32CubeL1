@@ -1,0 +1,30 @@
+name: Diff Explainer Workflow
+
+on: [push]
+
+jobs:
+  ai_inference:
+    runs-on: ubuntu-latest
+    name: diff explainer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      
+      - name: diff extractor
+        id: diff_extractor
+        uses: malekboubahri2/actions/diff_extractor@main
+        with:
+          repo-path: ${{ github.workspace }}
+
+      - name: ai_inference
+        id: inference
+        uses: actions/ai-inference@v1
+        with:
+          prompt: |
+            Please explain the following diff:
+            ${{ steps.diff_extractor.outputs.diff-result }}
+      
+      - name: Print Output
+        run: echo "${{ steps.inference.outputs.response }}"
