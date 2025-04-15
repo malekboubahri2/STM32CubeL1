@@ -20,7 +20,7 @@ jobs:
         uses: malekboubahri2/actions/compile@main
         with:
           gcc-url: 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-win32.exe?rev=29bb46cfa0434fbda93abb33c1d480e6&hash=3C58D05EA5D32EF127B9E4D13B3244D26188713C'
-          stm32-series: ‘L1'
+          stm32-series: 'L1'
           define-list: '-DSTM32L152xD '
           option-list: '-march=armv7e-m -mthumb'
       # Log compilation result using the output from the "compile" step.
