@@ -18,7 +18,7 @@ jobs:
         uses: malekboubahri2/actions/diff_extractor@main
 
       - name: Print Output
-        run: echo "${{ steps.inference.outputs.response }}"
+        run: echo "${{ steps.diff_extractor.outputs.diff-result }}"
 
       - name: ai_inference
         id: inference
