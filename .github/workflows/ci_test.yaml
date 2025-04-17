@@ -46,7 +46,7 @@ jobs:
     steps:
       - name: Checkout
         env:
-            GITHUB_TOKEN: ${{secrets.TARGET_REPO_PAT}}
+            GITHUB_TOKEN: ${{github.TARGET_REPO_PAT}}
             ISSUE_TITLE: "Cloned Issue"
             ISSUE_BODY: ${{needs.diff_explainer.outputs.inference-result}}
         run: |
