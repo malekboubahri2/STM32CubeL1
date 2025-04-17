@@ -36,3 +36,22 @@ jobs:
       
       - name: Print Output
         run: echo "${{ steps.inference.outputs.response }}"
+
+create_issue_F4:
+    runs-on: ubuntu-latest
+    needs: diff_explainer
+    steps:
+        - name: Create Issue
+        uses: actions/github-script@v6
+        with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            script: |
+            const { context } = require('@actions/github');
+            const issueTitle = 'Cloned Issue';
+            const issueBody = `h\n\n\`\`\`json\n${{ steps.inference.outputs.response }}\n\`\`\``;
+            const response = await github.issues.create({
+                owner: 'STMicrolectronics',
+                repo: 'STM32F4',
+                title: issueTitle,
+                body: issueBody
+            });
