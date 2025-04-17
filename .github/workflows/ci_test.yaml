@@ -45,21 +45,13 @@ jobs:
     needs: diff_explainer
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Create Issue
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const issueTitle = 'Cloned Issue';
-            const issueBody = `Issue from L1: ${{ needs.diff_explainer.outputs.inference-result }}`;
-            const response = await github.rest.issues.create({
-              owner: 'malekboubahri2',
-              repo: 'target_repo',
-              title: issueTitle,
-              body: issueBody
-            });
-
-      - name: Print Issue URL
-        run: echo "Issue URL ${{ steps.create_issue.outputs.issue_url }}"
+        env:
+            GITHUB_TOKEN: ${{secrets.TARGET_REPO_PAT}}
+            ISSUE_TITLE: "Cloned Issue"
+            ISSUE_BODY: ${{needs.diff_explainer.outputs.inference-result}}
+        run: |
+         curl -x POST \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: appplication/vnd.github.v3+json" \
+          https://api.github.com/repos/malekbobauhri2/target_repo/issues \
+          -d "$(jq -n --arg title "$ISSUE_TITLE" --arg body "$ISSUE_BODY" '{title: $title, body :$body}')"
