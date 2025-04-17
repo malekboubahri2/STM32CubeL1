@@ -3,27 +3,41 @@ name: Diff Explainer Workflow
 on: [push]
 
 jobs:
-  ai_inference:
+  diff_extractor:
     runs-on: ubuntu-latest
-    name: diff explainer
+    name: Extract diff
+    outputs:
+      diff-result: ${{ steps.extract.outputs.diff-result }}
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v2
         with:
           submodules: 'true'
           fetch-depth: '3'
       
       - name: diff extractor
-        id: diff_extractor
+        id: extract
         uses: malekboubahri2/actions/diff_extractor@main
 
-      - name: ai_inference
+  ai_inference:
+    needs: diff_extractor
+    runs-on: ubuntu-latest
+    name: AI Inference
+    outputs:
+      response: ${{ steps.inference.outputs.response }}
+    steps:
+      - name: AI inference
         id: inference
         uses: actions/ai-inference@v1
         with:
           prompt: |
             Please explain the following diff:
-            ${{ steps.diff_extractor.outputs.diff-result }}
-      
+            ${{ needs.diff_extractor.outputs.diff-result }}
+
+  print_output:
+    needs: ai_inference
+    runs-on: ubuntu-latest
+    name: Print Output
+    steps:
       - name: Print Output
-        run: echo "${{ steps.inference.outputs.response }}"
+        run: echo "${{ needs.ai_inference.outputs.response }}"
