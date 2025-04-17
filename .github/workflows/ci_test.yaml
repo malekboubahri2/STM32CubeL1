@@ -56,7 +56,7 @@ jobs:
             const issueBody = `Issue from L1: ${{ needs.diff_explainer.outputs.inference-result }}`;
             const response = await github.rest.issues.create({
               owner: 'malekboubahri2',
-              repo: 'STM32CubeF4',
+              repo: 'target_repo',
               title: issueTitle,
               body: issueBody
             });
