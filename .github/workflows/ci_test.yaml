@@ -31,8 +31,7 @@ jobs:
         uses: actions/ai-inference@v1
         with:
           prompt: |
-            Please add a change_description field to the following input. The change_description field should capture a brief summary of the changes made in the diff. Do not add any other fields or make any other modifications to the script. and format it in JSON format.
-            ${{ needs.diff_parser.outputs.diff-result }}
+            Please add a change_description field to the following input. The change_description field should capture a brief summary of the changes made in the diff. Do not add any other fields or make any other modifications to the script.
       
       - name: Print Output
         run: echo "${{ steps.inference.outputs.response }}"
