@@ -2,7 +2,7 @@
 
 name: Automatic Continuous Integration (ACI)
 # Controls when the workflow execution is triggered (on “pushes” in this case).
-on: [push]
+on: [workflow_call]
 # A workflow is made up of one or more jobs that run sequentially or in parallel
 
 jobs:
