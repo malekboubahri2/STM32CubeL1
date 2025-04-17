@@ -16,7 +16,6 @@ jobs:
       - name: diff extractor
         id: diff_extractor
         uses: malekboubahri2/actions/diff_extractor@main
-        run: echo "{diff-result}={$escaped_diff_result}" >> $GITHUB_OUTPUT
 
       - name: ai_inference
         id: inference
