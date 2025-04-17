@@ -52,8 +52,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issueTitle = 'AI Inference Output';
-            const issueBody = `This issue contains the AI inference output:\n\n\`\`\`json\n${{ needs.diff_explainer.outputs.inference-result }}\n\`\`\``;
+            const issueTitle = 'Cloned Issue';
+            const issueBody = `Issue from L1: ${{ needs.diff_explainer.outputs.inference-result }}`;
             const response = await github.issues.create({
               owner: 'malekboubahri2',
               repo: 'STM32CubeF4',
