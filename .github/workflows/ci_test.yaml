@@ -63,4 +63,4 @@ jobs:
             });
 
       - name: Print Issue URL
-        run: echo "Issue URL: ${{ steps.create_issue.outputs.issue_url }}"
+        run: echo "Issue URL ${{ steps.create_issue.outputs.issue_url }}"
