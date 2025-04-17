@@ -8,7 +8,7 @@ jobs:
     name: diff explainer
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: 'true'
           fetch-depth: '3'
