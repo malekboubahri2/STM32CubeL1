@@ -6,7 +6,6 @@ jobs:
   diff_parser:
     runs-on: ubuntu-latest
     name: Diff Parsing
-    output: ${{ steps.diff_extractor.outputs.diff-result }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,9 +17,14 @@ jobs:
       - name: diff extractor
         id: diff_extractor
         uses: malekboubahri2/actions/diff_extractor@main
+
+    outputs:
+      diff-result: ${{ steps.diff_extractor.outputs.diff-result }}
+
   diff_explainer:
     runs-on: ubuntu-latest
-    name: Symantic Analysis
+    name: Semantic Analysis
+    needs: diff_parser
     steps:          
       - name: ai_inference
         id: inference
@@ -28,7 +32,7 @@ jobs:
         with:
           prompt: |
             Please add a change_description field to the following input. The change_description field should capture a brief summary of the changes made in the diff. Do not add any other fields or make any other modifications to the script. and format it in JSON format.
-            ${{ diff_parser.outputs.diff-result }}
+            ${{ needs.diff_parser.outputs.diff-result }}
       
       - name: Print Output
         run: echo "${{ steps.inference.outputs.response }}"
