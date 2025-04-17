@@ -36,30 +36,31 @@ jobs:
       
       - name: Print Output
         run: echo "${{ steps.inference.outputs.response }}"
-  outputs:
-    inference-result: ${{ steps.inference.outputs.response }}
 
-create_issue_F4:
+    outputs:
+      inference-result: ${{ steps.inference.outputs.response }}
+
+  create_issue_F4:
     runs-on: ubuntu-latest
     needs: diff_explainer
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Create Issue
-      uses: actions/github-script@v6
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
+      - name: Create Issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
             const { context } = require('@actions/github');
             const issueTitle = 'AI Inference Output';
-            const issueBody = `This issue contains the AI inference output:\n\n\`\`\`json\n${{ steps.inference.outputs.response }}\n\`\`\``;
+            const issueBody = `This issue contains the AI inference output:\n\n\`\`\`json\n${{ needs.diff_explainer.outputs.inference-result }}\n\`\`\``;
             const response = await github.issues.create({
-                owner: 'malekboubahri2',
-                repo: 'STM32CubeF4',
-                title: issueTitle,
-                body: issueBody
+              owner: 'malekboubahri2',
+              repo: 'STM32CubeF4',
+              title: issueTitle,
+              body: issueBody
             });
 
-    - name: Print Issue URL
-    run: echo "${{ steps.create_issue.outputs.issue_url }}"
+      - name: Print Issue URL
+        run: echo "Issue URL: ${{ steps.create_issue.outputs.issue_url }}"
