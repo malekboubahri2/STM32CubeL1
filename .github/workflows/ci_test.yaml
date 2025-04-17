@@ -1,11 +1,11 @@
-name: Diff Explainer Workflow
+name: Issue Propagator
 
 on: [push]
 
 jobs:
-  ai_inference:
+  diff_parser:
     runs-on: ubuntu-latest
-    name: diff explainer
+    name: Diff PArsing
     steps:
       - name: Checkout
         uses: actions/checkout@v4
