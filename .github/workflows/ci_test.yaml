@@ -23,7 +23,7 @@ jobs:
         uses: actions/ai-inference@v1
         with:
           prompt: |
-            Please explain the following diff:
+            Please explain the following diff in one sentence:
             ${{ steps.diff_extractor.outputs.diff-result }}
       
       - name: Print Output
