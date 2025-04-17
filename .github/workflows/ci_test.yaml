@@ -31,7 +31,7 @@ jobs:
         uses: actions/ai-inference@v1
         with:
           prompt: |
-            Please explain the following diff in one sentence so it can be sent as a PR to another repository:
+            Please explain the following diff in one sentence so it can be sent as a PR to another repository ( DON NOT USE SIMPLE QUOTES!):
             ${{ needs.diff_parser.outputs.diff-result }}
       
       - name: Print Output
