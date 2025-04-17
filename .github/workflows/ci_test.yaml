@@ -12,6 +12,7 @@ jobs:
         with:
           submodules: 'true'
           fetch-depth: '3'
+          show-progress: 'false'
       
       - name: diff extractor
         id: diff_extractor
