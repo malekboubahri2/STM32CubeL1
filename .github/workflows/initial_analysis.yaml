@@ -30,12 +30,8 @@ jobs:
         id: issue
         run: |
           mkdir -p .github/ai_triage
-          cat > .github/ai_triage/issue_title.txt <<__END__
-          ${{ github.event.issue.title }}
-          __END__
-          cat > .github/ai_triage/issue_body.md <<__END__
-          ${{ github.event.issue.body }}
-          __END__
+          echo "${{ github.event.issue.title }}" > .github/ai_triage/issue_title.txt
+          echo "${{ github.event.issue.body }}" > .github/ai_triage/issue_body.md
 
       - name: Detect MCU family / Cube context (heuristics)
         id: detect
@@ -43,25 +39,21 @@ jobs:
         run: |
           OUT=.github/ai_triage/detected_context.txt
           echo "# Detected Context" > "$OUT"
-          # From .ioc (CubeMX)
           if ls *.ioc >/dev/null 2>&1; then
             echo "IOC_FILE=$(ls *.ioc | head -n1)" >> "$OUT"
-            # Grep common fields without regex escapes
             grep -E '^Mcu[.](Name|Family|Package|Board|Frequency)=' *.ioc >> "$OUT" || true
             grep -E '^(RCC|USART|UART|DMA|ADC|I2C|SPI)[.]' *.ioc | head -n 100 >> "$OUT" || true
           fi
-          # From includes / HAL defines (simple patterns)
           rg -n '#include "stm32' -S -g '!**/build/**' || true | head -n 50 >> "$OUT"
           rg -n 'STM32[A-Z0-9]+' -S -g '!**/build/**' || true | head -n 50 >> "$OUT"
-          echo "Done" >> "$OUT"
 
       - name: Extract keywords from issue
         id: kw
         shell: bash
         run: |
           python3 - <<'PY'
-          text = open('.github/ai_triage/issue_title.txt','r',encoding='utf-8').read()+"
-          "+open('.github/ai_triage/issue_body.md','r',encoding='utf-8').read()
+          import re
+          text = open('.github/ai_triage/issue_title.txt','r',encoding='utf-8').read()+"\n"+open('.github/ai_triage/issue_body.md','r',encoding='utf-8').read()
           low = text.lower()
           vocab = [
             'uart','usart','dma','adc','i2c','spi','can','tim','rtc','exti','pwr','rcc','gpio',
@@ -72,25 +64,24 @@ jobs:
           for w in vocab:
               if w in low:
                   found.append(w.upper())
-          open('.github/ai_triage/keywords.txt','w',encoding='utf-8').write("
-          ".join(sorted(set(found))))
+          open('.github/ai_triage/keywords.txt','w',encoding='utf-8').write("\n".join(sorted(set(found))))
           PY
                     echo "Keywords:" && cat .github/ai_triage/keywords.txt || true
 
-      - name: Collect code evidence (ripgrep around keywords)
-        id: evidence
-        shell: bash
-        run: |
-          EVID=.github/ai_triage/evidence_code.txt
-          : > "$EVID"
-          if [ -s .github/ai_triage/keywords.txt ]; then
-            while read -r k; do
-              rg -n -C3 -S "$k" \
-                -g '!**/build/**' -g '!**/.git/**' -g '!**/bin/**' -g '!**/obj/**' \
-                --no-heading || true
-            done < .github/ai_triage/keywords.txt | head -n 800 > "$EVID"
-          fi
-          echo "Captured $(wc -l < "$EVID") evidence lines"
+                - name: Collect code evidence (ripgrep around keywords)
+                  id: evidence
+                  shell: bash
+                  run: |
+                    EVID=.github/ai_triage/evidence_code.txt
+                    : > "$EVID"
+                    if [ -s .github/ai_triage/keywords.txt ]; then
+                      while read -r k; do
+                        rg -n -C3 -S "$k" \
+                          -g '!**/build/**' -g '!**/.git/**' -g '!**/bin/**' -g '!**/obj/**' \
+                          --no-heading || true
+                      done < .github/ai_triage/keywords.txt | head -n 800 > "$EVID"
+                    fi
+                    echo "Captured $(wc -l < "$EVID") evidence lines"
 
       - name: Candidate files set (from evidence or heuristics)
         id: cands
@@ -146,18 +137,13 @@ jobs:
           rd=lambda p: open(os.path.join(base,p),'r',encoding='utf-8',errors='ignore').read() if os.path.exists(os.path.join(base,p)) else ''
           parts = [
             '# Issue', rd('issue_title.txt'), rd('issue_body.md'),
-            '
-          # Detected Context', rd('detected_context.txt'),
-            '
-          # Evidence (code excerpts with file:line)', rd('evidence_code.txt')[:12000],
-            '
-          # Static Analysis (cppcheck excerpts)', rd('cppcheck.txt')[:8000],
-            '
-          # Call Graph (truncated)', rd('callgraph.txt')[:8000]
+            '\n# Detected Context', rd('detected_context.txt'),
+            '\n# Evidence (code excerpts with file:line)', rd('evidence_code.txt')[:12000],
+            '\n# Static Analysis (cppcheck excerpts)', rd('cppcheck.txt')[:8000],
+            '\n# Call Graph (truncated)', rd('callgraph.txt')[:8000]
           ]
-          open(os.path.join(base,'bundle_for_ai.md'),'w',encoding='utf-8').write('
-
-          '.join(parts))
+          with open(os.path.join(base,'bundle_for_ai.md'),'w',encoding='utf-8') as f:
+            f.write('\n\n'.join(parts))
           print('::set-output name=bundle_path::.github/ai_triage/bundle_for_ai.md')
           PY
 
