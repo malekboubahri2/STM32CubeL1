@@ -3,18 +3,6 @@ name: AI Issue Triage
 on:
   workflow_dispatch:
 
-inputs:
-  issue_title:
-    description: "Test Issue Title"
-    required: true
-    default: "HAL_UART_Receive_DMA fails after STOP mode"
-  issue_body:
-    description: "Test Issue Body"
-    required: true
-    default: |
-      Using STM32F4, HAL_UART_Receive_DMA hangs after waking from STOP mode. Running on CubeF4 v1.27.1.
-
-
 jobs:
   triage_issue:
     runs-on: ubuntu-latest
