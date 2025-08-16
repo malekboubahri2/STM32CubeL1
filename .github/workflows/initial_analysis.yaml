@@ -28,7 +28,7 @@ jobs:
             Body: ${{ github.event.issue.body }}
 
       - name: Print AI Analysis
-        run: echo "${{ steps.inference.outputs.response }}"
+        run: echo ${{ steps.inference.outputs.response }}
 
       - name: Comment AI response on the issue
         uses: peter-evans/create-or-update-comment@v4
