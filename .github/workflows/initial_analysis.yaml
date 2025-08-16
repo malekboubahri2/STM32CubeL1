@@ -47,13 +47,14 @@ jobs:
           rg -n '#include "stm32' -S -g '!**/build/**' || true | head -n 50 >> "$OUT"
           rg -n 'STM32[A-Z0-9]+' -S -g '!**/build/**' || true | head -n 50 >> "$OUT"
 
-      - name: Extract keywords from issue
+      - name: Extract keywords from issue (Python)
         id: kw
         shell: bash
         run: |
           python3 - <<'PY'
           import re
-          text = open('.github/ai_triage/issue_title.txt','r',encoding='utf-8').read()+"\n"+open('.github/ai_triage/issue_body.md','r',encoding='utf-8').read()
+          text = open('.github/ai_triage/issue_title.txt','r',encoding='utf-8').read()+"
+          "+open('.github/ai_triage/issue_body.md','r',encoding='utf-8').read()
           low = text.lower()
           vocab = [
             'uart','usart','dma','adc','i2c','spi','can','tim','rtc','exti','pwr','rcc','gpio',
@@ -64,24 +65,30 @@ jobs:
           for w in vocab:
               if w in low:
                   found.append(w.upper())
-          open('.github/ai_triage/keywords.txt','w',encoding='utf-8').write("\n".join(sorted(set(found))))
+          open('.github/ai_triage/keywords.txt','w',encoding='utf-8').write("
+          ".join(sorted(set(found))))
           PY
-                    echo "Keywords:" && cat .github/ai_triage/keywords.txt || true
 
-                - name: Collect code evidence (ripgrep around keywords)
-                  id: evidence
-                  shell: bash
-                  run: |
-                    EVID=.github/ai_triage/evidence_code.txt
-                    : > "$EVID"
-                    if [ -s .github/ai_triage/keywords.txt ]; then
-                      while read -r k; do
-                        rg -n -C3 -S "$k" \
-                          -g '!**/build/**' -g '!**/.git/**' -g '!**/bin/**' -g '!**/obj/**' \
-                          --no-heading || true
-                      done < .github/ai_triage/keywords.txt | head -n 800 > "$EVID"
-                    fi
-                    echo "Captured $(wc -l < "$EVID") evidence lines"
+      - name: Show extracted keywords
+        shell: bash
+        run: |
+          echo "Keywords:"
+          sed -n '1,200p' .github/ai_triage/keywords.txt || true
+
+      - name: Collect code evidence (ripgrep around keywords)
+        id: evidence
+        shell: bash
+        run: |
+          EVID=.github/ai_triage/evidence_code.txt
+          : > "$EVID"
+          if [ -s .github/ai_triage/keywords.txt ]; then
+            while read -r k; do
+              rg -n -C3 -S "$k" \
+                -g '!**/build/**' -g '!**/.git/**' -g '!**/bin/**' -g '!**/obj/**' \
+                --no-heading || true
+            done < .github/ai_triage/keywords.txt | head -n 800 > "$EVID"
+          fi
+          echo "Captured $(wc -l < "$EVID") evidence lines"
 
       - name: Candidate files set (from evidence or heuristics)
         id: cands
