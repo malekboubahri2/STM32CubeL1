@@ -38,10 +38,10 @@ jobs:
           fi
           echo "mcu=$MCU" >> "$GITHUB_OUTPUT"
 
-      - name: AI inference (no MCU guessing, deeper cause)
-        id: inference
+      - name: AI inference
         uses: actions/ai-inference@v1
         with:
+          max-tokens: 1000
           prompt: |
             You are a firmware triage assistant for STM32Cube issues.
 
@@ -66,7 +66,7 @@ jobs:
         shell: bash
         run: |
           echo "---- AI Analysis ----"
-          printf "%s\n" ${{ steps.inference.outputs.response }}
+        
 
       - name: Comment AI response on the issue
         uses: peter-evans/create-or-update-comment@v4
