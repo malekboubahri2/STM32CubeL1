@@ -50,7 +50,6 @@ jobs:
             If it's "unknown", explicitly state that and proceed without guessing.
 
             Read the issue below and produce a concise, actionable analysis with the following sections ONLY:
-            - **MCU Family:** (use the provided value verbatim)
             - **Likely Cause (Explained):** Provide a deeper, step-by-step reasoning that maps symptoms to HAL concepts (init order, clock enable, IRQ/DMA linkage, low-power transitions, callbacks). Reference typical failure modes (e.g., stuck HAL state, missing re-init after STOP, IRQ not enabled, DMA flags uncleared) where applicable.
             - **Affected HAL Files:** List concrete HAL/LL source files (probable paths like `stm32<fam>xx_hal_<mod>.c`, or user files if evident).
             - **Suggestion / Workaround:** Concrete steps (code-level or config-level) the reporter can try now.
@@ -67,7 +66,7 @@ jobs:
         shell: bash
         run: |
           echo "---- AI Analysis ----"
-          echo ${{ steps.inference.outputs.response }}
+          echo "${{ steps.inference.outputs.response }}"
 
       - name: Comment AI response on the issue
         uses: peter-evans/create-or-update-comment@v4
