@@ -66,7 +66,7 @@ jobs:
         shell: bash
         run: |
           echo "---- AI Analysis ----"
-          printf "%s\n" "${{ steps.inference.outputs.response }}"
+          printf "%s\n" ${{ steps.inference.outputs.response }}
 
       - name: Comment AI response on the issue
         uses: peter-evans/create-or-update-comment@v4
