@@ -1,231 +1,76 @@
-# .github/workflows/ai-issue-triage.yml
-
-name: AI Issue Triage (Grounded, Multi-Stage)
+name: AI Issue Triage
 
 on:
   issues:
     types: [opened]
 
-permissions:
-  contents: read
-  issues: write
-
 jobs:
-  analyze:
+  triage_issue:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-          fetch-depth: 0
-
-      - name: Install tooling (ripgrep, ctags, cflow, cppcheck)
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ripgrep universal-ctags cflow cppcheck
-
-      - name: Capture issue content
-        id: issue
-        run: |
-          mkdir -p .github/ai_triage
-          echo "${{ github.event.issue.title }}" > .github/ai_triage/issue_title.txt
-          echo "${{ github.event.issue.body }}" > .github/ai_triage/issue_body.md
-
-      - name: Detect MCU family / Cube context (heuristics)
-        id: detect
+      - name: Derive MCU family from repo name
+        id: mcu
         shell: bash
         run: |
-          OUT=.github/ai_triage/detected_context.txt
-          echo "# Detected Context" > "$OUT"
-          if ls *.ioc >/dev/null 2>&1; then
-            echo "IOC_FILE=$(ls *.ioc | head -n1)" >> "$OUT"
-            grep -E '^Mcu[.](Name|Family|Package|Board|Frequency)=' *.ioc >> "$OUT" || true
-            grep -E '^(RCC|USART|UART|DMA|ADC|I2C|SPI)[.]' *.ioc | head -n 100 >> "$OUT" || true
+          REPO="${{ github.repository }}"            # e.g., org/STM32F4_HAL_Examples
+          NAME="${REPO##*/}"                         # take repo name only
+          LOW=$(printf "%s" "$NAME" | tr '[:upper:]' '[:lower:]')
+          # match common STM32 families in repo name (extend if needed)
+          MCU="unknown"
+          if   [[ "$LOW" =~ stm32f0 ]]; then MCU="STM32F0"
+          elif [[ "$LOW" =~ stm32f1 ]]; then MCU="STM32F1"
+          elif [[ "$LOW" =~ stm32f2 ]]; then MCU="STM32F2"
+          elif [[ "$LOW" =~ stm32f3 ]]; then MCU="STM32F3"
+          elif [[ "$LOW" =~ stm32f4 ]]; then MCU="STM32F4"
+          elif [[ "$LOW" =~ stm32f7 ]]; then MCU="STM32F7"
+          elif [[ "$LOW" =~ stm32g0 ]]; then MCU="STM32G0"
+          elif [[ "$LOW" =~ stm32g4 ]]; then MCU="STM32G4"
+          elif [[ "$LOW" =~ stm32h5 ]]; then MCU="STM32H5"
+          elif [[ "$LOW" =~ stm32h7 ]]; then MCU="STM32H7"
+          elif [[ "$LOW" =~ stm32l0 ]]; then MCU="STM32L0"
+          elif [[ "$LOW" =~ stm32l1 ]]; then MCU="STM32L1"
+          elif [[ "$LOW" =~ stm32l4 ]]; then MCU="STM32L4"
+          elif [[ "$LOW" =~ stm32l5 ]]; then MCU="STM32L5"
+          elif [[ "$LOW" =~ stm32u5 ]]; then MCU="STM32U5"
+          elif [[ "$LOW" =~ stm32wb ]]; then MCU="STM32WB"
+          elif [[ "$LOW" =~ stm32wl ]]; then MCU="STM32WL"
           fi
-          rg -n '#include "stm32' -S -g '!**/build/**' || true | head -n 50 >> "$OUT"
-          rg -n 'STM32[A-Z0-9]+' -S -g '!**/build/**' || true | head -n 50 >> "$OUT"
+          echo "mcu=$MCU" >> "$GITHUB_OUTPUT"
 
-      - name: Extract keywords from issue (Python)
-        id: kw
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import re
-          text = open('.github/ai_triage/issue_title.txt','r',encoding='utf-8').read()+"
-          "+open('.github/ai_triage/issue_body.md','r',encoding='utf-8').read()
-          low = text.lower()
-          vocab = [
-            'uart','usart','dma','adc','i2c','spi','can','tim','rtc','exti','pwr','rcc','gpio',
-            'stop','standby','sleep','lpm','low power','wake','wfi','wfe',
-            'hal_','ll_','callback','interrupt','nvic','init','deinit','calibration','clock','baud',
-            'hal2','migration','regression','deadlock','hang','hal_busy','hal_error']
-          found = []
-          for w in vocab:
-              if w in low:
-                  found.append(w.upper())
-          open('.github/ai_triage/keywords.txt','w',encoding='utf-8').write("
-          ".join(sorted(set(found))))
-          PY
-
-      - name: Show extracted keywords
-        shell: bash
-        run: |
-          echo "Keywords:"
-          sed -n '1,200p' .github/ai_triage/keywords.txt || true
-
-      - name: Collect code evidence (ripgrep around keywords)
-        id: evidence
-        shell: bash
-        run: |
-          EVID=.github/ai_triage/evidence_code.txt
-          : > "$EVID"
-          if [ -s .github/ai_triage/keywords.txt ]; then
-            while read -r k; do
-              rg -n -C3 -S "$k" \
-                -g '!**/build/**' -g '!**/.git/**' -g '!**/bin/**' -g '!**/obj/**' \
-                --no-heading || true
-            done < .github/ai_triage/keywords.txt | head -n 800 > "$EVID"
-          fi
-          echo "Captured $(wc -l < "$EVID") evidence lines"
-
-      - name: Candidate files set (from evidence or heuristics)
-        id: cands
-        shell: bash
-        run: |
-          awk -F: '{print $1}' .github/ai_triage/evidence_code.txt | sort -u | head -n 60 > .github/ai_triage/candidates.txt || true
-          if [ ! -s .github/ai_triage/candidates.txt ]; then
-            : > .github/ai_triage/candidates.txt
-            find . -type f -iname '*stm32*hal*_*.c' | head -n 20 >> .github/ai_triage/candidates.txt || true
-            find . -type f -iname '*stm32*ll*_*.c' | head -n 20 >> .github/ai_triage/candidates.txt || true
-            find . -type f -iname '*uart*.c' | head -n 10 >> .github/ai_triage/candidates.txt || true
-            find . -type f -iname '*usart*.c' | head -n 10 >> .github/ai_triage/candidates.txt || true
-            find . -type f -iname '*dma*.c' | head -n 10 >> .github/ai_triage/candidates.txt || true
-            find . -type f -iname '*pwr*.c' | head -n 10 >> .github/ai_triage/candidates.txt || true
-            find . -type f -iname '*rtc*.c' | head -n 10 >> .github/ai_triage/candidates.txt || true
-            sort -u .github/ai_triage/candidates.txt -o .github/ai_triage/candidates.txt
-          fi
-          echo "Candidates:" && cat .github/ai_triage/candidates.txt || true
-
-      - name: Static checks (cppcheck on candidates)
-        id: static
-        shell: bash
-        run: |
-          LIST=.github/ai_triage/candidates.txt
-          OUT=.github/ai_triage/cppcheck.txt
-          if [ -s "$LIST" ]; then
-            cppcheck --enable=warning,performance,portability,style --template='{file}:{line}: {severity}: {message}' \
-              --quiet $(cat "$LIST") 2> "$OUT" || true
-          else
-            echo "No candidates" > "$OUT"
-          fi
-          head -n 200 "$OUT" || true
-
-      - name: Call graph (cflow, truncated)
-        id: calls
-        shell: bash
-        run: |
-          LIST=.github/ai_triage/candidates.txt
-          OUT=.github/ai_triage/callgraph.txt
-          : > "$OUT"
-          if [ -s "$LIST" ]; then
-            head -n 20 "$LIST" | xargs cflow --format=posix 2>/dev/null | head -n 1000 > "$OUT" || true
-          fi
-          wc -l "$OUT" || true
-
-      - name: Build grounded context bundle for AI
-        id: bundle
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import os
-          base='.github/ai_triage'
-          rd=lambda p: open(os.path.join(base,p),'r',encoding='utf-8',errors='ignore').read() if os.path.exists(os.path.join(base,p)) else ''
-          parts = [
-            '# Issue', rd('issue_title.txt'), rd('issue_body.md'),
-            '\n# Detected Context', rd('detected_context.txt'),
-            '\n# Evidence (code excerpts with file:line)', rd('evidence_code.txt')[:12000],
-            '\n# Static Analysis (cppcheck excerpts)', rd('cppcheck.txt')[:8000],
-            '\n# Call Graph (truncated)', rd('callgraph.txt')[:8000]
-          ]
-          with open(os.path.join(base,'bundle_for_ai.md'),'w',encoding='utf-8') as f:
-            f.write('\n\n'.join(parts))
-          print('::set-output name=bundle_path::.github/ai_triage/bundle_for_ai.md')
-          PY
-
-      - name: Read bundle for prompt
-        id: readbundle
-        run: |
-          echo "bundle<<__BND__" >> $GITHUB_OUTPUT
-          cat .github/ai_triage/bundle_for_ai.md >> $GITHUB_OUTPUT
-          echo "__BND__" >> $GITHUB_OUTPUT
-
-      - name: AI Inference — Stage 1 (ticket understanding)
-        id: s1
+      - name: AI inference (no MCU guessing, deeper cause)
+        id: inference
         uses: actions/ai-inference@v1
         with:
           prompt: |
-            You are an STM32 firmware maintainer. Read the ticket below and extract:
-            - MCU family, HAL version (if any), peripheral(s)
-            - Hypothesized failure mode
-            - Keywords useful for code search
-            Return concise bullet points.
+            You are a firmware triage assistant for STM32Cube issues.
+
+            DO NOT guess the MCU family. The MCU family is: **${{ steps.mcu.outputs.mcu }}**.
+            If it's "unknown", explicitly state that and proceed without guessing.
+
+            Read the issue below and produce a concise, actionable analysis with the following sections ONLY:
+            - **MCU Family:** (use the provided value verbatim)
+            - **Likely Cause (Explained):** Provide a deeper, step-by-step reasoning that maps symptoms to HAL concepts (init order, clock enable, IRQ/DMA linkage, low-power transitions, callbacks). Reference typical failure modes (e.g., stuck HAL state, missing re-init after STOP, IRQ not enabled, DMA flags uncleared) where applicable.
+            - **Affected HAL Files:** List concrete HAL/LL source files (probable paths like `stm32<fam>xx_hal_<mod>.c`, or user files if evident).
+            - **Suggestion / Workaround:** Concrete steps (code-level or config-level) the reporter can try now.
+            - **Migration Advice (HAL2):** Only include if the issue text mentions HAL2 or migration; otherwise omit this section.
+
+            Use clear bullet points. Avoid generic boilerplate.
 
             ---
-            ${{ github.event.issue.title }}
-
+            Title: ${{ github.event.issue.title }}
+            Body:
             ${{ github.event.issue.body }}
 
-      - name: AI Inference — Stage 2 (grounded code reasoning)
-        id: s2
-        uses: actions/ai-inference@v1
-        with:
-          prompt: |
-            You are a strict code analyst. BASE ALL CLAIMS ON THE PROVIDED CONTEXT ONLY.
-            If the evidence is insufficient or ambiguous, say "INCONCLUSIVE" and explain what is missing.
+      - name: Print AI Analysis (log)
+        shell: bash
+        run: |
+          echo "---- AI Analysis ----"
+          printf "%s\n" "${{ steps.inference.outputs.response }}"
 
-            Produce a JSON object with keys:
-            {
-              "verdict": "CONFIRMED" | "LIKELY" | "INCONCLUSIVE",
-              "why": "short reasoning grounded in evidence",
-              "evidence": [
-                {"file": "path", "line": 0, "excerpt": "..."}
-              ],
-              "affected_functions": ["..."],
-              "proposed_fix": {
-                "description": "what to change and why",
-                "patch": "code snippet or pseudo-diff"
-              },
-              "followup_tests": ["test idea 1", "test idea 2"],
-              "notes": "any HAL1 vs HAL2 migration remarks if relevant"
-            }
-
-            --- CONTEXT BUNDLE START ---
-            ${{ steps.readbundle.outputs.bundle }}
-            --- CONTEXT BUNDLE END ---
-
-      - name: Post grounded analysis to issue
+      - name: Comment AI response on the issue
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ### 🧠 AI Multi-Stage Analysis (Grounded)
-
-            **Stage 1 — Ticket Understanding**
-
-            ${{ steps.s1.outputs.response }}
-
-            **Stage 2 — Code Reasoning (Grounded JSON)**
-
-            ```json
-            ${{ steps.s2.outputs.response }}
-            ```
-
-            <details>
-            <summary>Context (truncated bundle)</summary>
-
-            ```
-            ${{ steps.readbundle.outputs.bundle }}
-            ```
-            </details>
+            ${{ steps.inference.outputs.response }}
