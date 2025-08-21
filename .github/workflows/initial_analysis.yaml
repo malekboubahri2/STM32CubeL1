@@ -9,35 +9,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Derive MCU family from repo name
-        id: mcu
-        shell: bash
-        run: |
-          REPO="${{ github.repository }}"            # e.g., org/STM32F4_HAL_Examples
-          NAME="${REPO##*/}"                         # take repo name only
-          LOW=$(printf "%s" "$NAME" | tr '[:upper:]' '[:lower:]')
-          # match common STM32 families in repo name (extend if needed)
-          MCU="unknown"
-          if   [[ "$LOW" =~ stm32f0 ]]; then MCU="STM32F0"
-          elif [[ "$LOW" =~ stm32f1 ]]; then MCU="STM32F1"
-          elif [[ "$LOW" =~ stm32f2 ]]; then MCU="STM32F2"
-          elif [[ "$LOW" =~ stm32f3 ]]; then MCU="STM32F3"
-          elif [[ "$LOW" =~ stm32f4 ]]; then MCU="STM32F4"
-          elif [[ "$LOW" =~ stm32f7 ]]; then MCU="STM32F7"
-          elif [[ "$LOW" =~ stm32g0 ]]; then MCU="STM32G0"
-          elif [[ "$LOW" =~ stm32g4 ]]; then MCU="STM32G4"
-          elif [[ "$LOW" =~ stm32h5 ]]; then MCU="STM32H5"
-          elif [[ "$LOW" =~ stm32h7 ]]; then MCU="STM32H7"
-          elif [[ "$LOW" =~ stm32l0 ]]; then MCU="STM32L0"
-          elif [[ "$LOW" =~ stm32l1 ]]; then MCU="STM32L1"
-          elif [[ "$LOW" =~ stm32l4 ]]; then MCU="STM32L4"
-          elif [[ "$LOW" =~ stm32l5 ]]; then MCU="STM32L5"
-          elif [[ "$LOW" =~ stm32u5 ]]; then MCU="STM32U5"
-          elif [[ "$LOW" =~ stm32wb ]]; then MCU="STM32WB"
-          elif [[ "$LOW" =~ stm32wl ]]; then MCU="STM32WL"
-          fi
-          echo "mcu=$MCU" >> "$GITHUB_OUTPUT"
+      - name: Auto-label issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue_number = context.issue.number;
+            const repo = context.repo;
+            const body = context.payload.issue.body.toLowerCase();
+            const title = context.payload.issue.title.toLowerCase();
+            const text = title + " " + body;
 
+            const labels = [
+              "enhancement",
+              "fmc",
+              "hal",
+              "nor",
+              "bug",
+              "eth",
+              "internal bug tracker",
+              "usb",
+              "rng",
+              "st community",
+              "rcc",
+              "cryp",
+              "qspi",
+              "wontfix",
+              "adc"
+            ];
+
+            let matched = [];
+            for (const label of labels) {
+              if (text.includes(label)) {
+                matched.push(label);
+              }
+            }
+
+            if (matched.length > 0) {
+              console.log("Applying labels:", matched);
+              await github.rest.issues.addLabels({
+                ...repo,
+                issue_number,
+                labels: matched
+              });
+            } else {
+              console.log("No matching labels found");
+            }
       - name: AI inference
         id: inference
         uses: actions/ai-inference@v1
