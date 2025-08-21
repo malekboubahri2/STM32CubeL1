@@ -53,7 +53,6 @@ jobs:
             - **Likely Cause (Explained):** Provide a deeper, step-by-step reasoning that maps symptoms to HAL concepts (init order, clock enable, IRQ/DMA linkage, low-power transitions, callbacks). Reference typical failure modes (e.g., stuck HAL state, missing re-init after STOP, IRQ not enabled, DMA flags uncleared) where applicable.
             - **Affected HAL Files:** List concrete HAL/LL source files (probable paths like `stm32<fam>xx_hal_<mod>.c`, or user files if evident).
             - **Suggestion / Workaround:** Concrete steps (code-level or config-level) the reporter can try now.
-            - **Migration Advice (HAL2):** Only include if the issue text mentions HAL2 or migration; otherwise omit this section.
 
             Use clear bullet points. Avoid generic boilerplate.
 
