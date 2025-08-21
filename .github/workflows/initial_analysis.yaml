@@ -39,6 +39,7 @@ jobs:
           echo "mcu=$MCU" >> "$GITHUB_OUTPUT"
 
       - name: AI inference
+        id: inference
         uses: actions/ai-inference@v1
         with:
           max-tokens: 1000
@@ -66,7 +67,7 @@ jobs:
         shell: bash
         run: |
           echo "---- AI Analysis ----"
-        
+          echo ${{ steps.inference.outputs.response }}
 
       - name: Comment AI response on the issue
         uses: peter-evans/create-or-update-comment@v4
